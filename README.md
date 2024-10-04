@@ -2,7 +2,8 @@
 All the code needed to read and produce emissivity cubes. 
 
 File Descriptions: 
-read_fits_cube.py - This will read in an emissivity cube stored in the FITS format. It will eventually be able to read in cubes created from any type of MHD simulation. 
+
+read_fits_cube.py - This will read in an emissivity cube stored in the FITS format. It will eventually be able to read in cubes created from any type of MHD simulation. Originally based on emissivity cubes derived from OpenGGCM.  
 
 read_openggcm_mhd.py - This reads in the CDF files produced by the OpenGGCM code and the json header files and add all the data to a python object in the same coordinate system as PPMLR. 
 
@@ -14,4 +15,12 @@ cusp_id.py - Implementation of the cusp identification algorithm from Sun et al.
 
 get_meridians.py - Gets the XY and XZ meridian planes out of a 3D datacube for plotting. 
 
+read_ppmlr.py - Code to read in the ASCII PPMLR files. 
 
+ppmlr_fits.py - Code to read in the FITS PPMLR files. Will be made to do the same job as read_fits_cube.py so they are consistent. 
+
+ppmlr_image.py - Code to produce an image through a PPMLR cube. Will be made to do the same for all cubes. 
+
+smile_fov.py - Object to create the pointing directions and LOS coordinates for SXI. This version is unconstrained and can be pointed anywhere. 
+
+smile_fov_limb.py Object to create the pointing directions and LOS coordinates for SXI, including the constraints to keep a constant angle with the limb of the earth, always pointing at the GSE x axis and having the x axis of the image pointing towards the Earth. 

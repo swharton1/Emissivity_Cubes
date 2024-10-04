@@ -7,3 +7,19 @@ from . import cusp_id
 from . import get_meridians
 from . import read_fits_cube
 
+from . import read_ppmlr
+from . import ppmlr_fits
+from . import ppmlr_image
+from . import smile_fov
+from . import smile_fov_limb 
+
+#Set your paths to the data here and where you want any plots saving too. 
+if "PPMLR_PATH" not in os.environ:
+    os.environ["PPMLR_PATH"] = "/data/sol-ionosphere/SMILE/PPMLR/"
+
+if "OPENGGCM_PATH" not in os.environ:
+    os.environ["OPENGGCM_PATH"] = "/data/sol-ionosphere/SMILE/OpenGGCM/" 
+    
+if "PLOT_PATH" not in os.environ:
+    os.environ["PLOT_PATH"] = "/scratch/smile/sw682/"
+
