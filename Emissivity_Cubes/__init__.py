@@ -13,6 +13,9 @@ from . import ppmlr_image
 from . import smile_fov
 from . import smile_fov_limb 
 
+from . import batsrus_fits 
+from . import read_batsrus
+
 import os 
 #Set your paths to the data here and where you want any plots saving too. 
 if "PPMLR_PATH" not in os.environ:

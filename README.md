@@ -21,10 +21,14 @@ get_meridians.py - Gets the XY and XZ meridian planes out of a 3D datacube for p
 
 read_ppmlr.py - Code to read in the ASCII PPMLR files. 
 
-ppmlr_fits.py - Code to read in the FITS PPMLR files. Will be made to do the same job as read_fits_cube.py so they are consistent. 
+ppmlr_fits.py - Code to read in the FITS PPMLR files. Will be made to do the same job as read_fits_cube.py so they are consistent. This file is effectively redundant. 
 
 ppmlr_image.py - Code to produce an image through a PPMLR cube. Will be made to do the same for all cubes. 
 
 smile_fov.py - Object to create the pointing directions and LOS coordinates for SXI. This version is unconstrained and can be pointed anywhere. 
 
 smile_fov_limb.py Object to create the pointing directions and LOS coordinates for SXI, including the constraints to keep a constant angle with the limb of the earth, always pointing at the GSE x axis and having the x axis of the image pointing towards the Earth. 
+
+read_batsrus.py - Code to read in emissivity cubes derived from BATSRUS simulations. Based on emissivit cubes created by Andrey Samsonov in the same format as the emissivity cubes derived from PPMLR by Tianran Sun. 
+
+batsrus_fits.py - Code to convert the BATSRUS ASCII files to FITS files in the common format. FITS files can be read in with read_fits_cube.py. 
