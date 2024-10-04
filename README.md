@@ -1,6 +1,10 @@
 # Emissivity_Cubes
 All the code needed to read and produce emissivity cubes. 
 
+Setup: 
+The only setup you should need to do is open Emissivity_Cubes/__init__.py and edit the filepaths to where you keep the data, and where you want any plots to go. 
+
+
 File Descriptions: 
 
 read_fits_cube.py - This will read in an emissivity cube stored in the FITS format. It will eventually be able to read in cubes created from any type of MHD simulation. Originally based on emissivity cubes derived from OpenGGCM.  
