@@ -13,12 +13,16 @@ from . import ppmlr_image
 from . import smile_fov
 from . import smile_fov_limb 
 
+import os 
 #Set your paths to the data here and where you want any plots saving too. 
 if "PPMLR_PATH" not in os.environ:
-    os.environ["PPMLR_PATH"] = "/data/sol-ionosphere/SMILE/PPMLR/"
+    os.environ["PPMLR_PATH"] = "/data/smile/PPMLR/"
 
 if "OPENGGCM_PATH" not in os.environ:
-    os.environ["OPENGGCM_PATH"] = "/data/sol-ionosphere/SMILE/OpenGGCM/" 
+    os.environ["OPENGGCM_PATH"] = "/data/smile/OpenGGCM/" 
+    
+if "BATSRUS_PATH" not in os.environ:
+    os.environ["BATSRUS_PATH"] = "/data/smile/BATSRUS/"
     
 if "PLOT_PATH" not in os.environ:
     os.environ["PLOT_PATH"] = "/scratch/smile/sw682/"

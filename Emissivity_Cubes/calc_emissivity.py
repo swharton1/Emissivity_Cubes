@@ -5,7 +5,7 @@ from matplotlib.patches import Wedge, Polygon, Circle
 from astropy.io import fits as pyfits 
 
 #from . import masking 
-from . import masking3
+from . import calc_flowlines as flowlines
 from . import cusp_id 
 from . import get_meridians as gm
 from time import process_time
@@ -116,36 +116,26 @@ class emissivity():
             self.emis_3d[mask1] = self.alpha*self.data['veff'][mask1]*self.data['rho'][mask1]*self.data['nH'][mask1] 
         
         elif self.masking_method == 'cusps':
-            flow = masking.flowlines(openggcm=self.openggcm, step='adaptive')
+            #Get cusps. 
+            cusp_n = cusp_id.cusps(openggcm=self.openggcm)
+            cusp_n.get_cusp_mask(pthresh=None, r_min=None, hemi='north', figure=False)
+            cusp_s = cusp_id.cusps(openggcm=self.openggcm)
+            cusp_s.get_cusp_mask(pthresh=None, r_min=None, hemi='south', figure=False)
             
-            #Add cusps. 
-            flow.get_cusp_mask(hemi='north', figure=False)
-            flow.get_cusp_mask(hemi='south', figure=False)
+            #Add cusps together. 
+            origin = cusp_n.origin 
+            isouth = np.where(cusp_s.origin == 1) 
+            origin[isouth] = 1
             
-            mask1 = np.where(flow.origin == 1) 
+            mask1 = np.where(origin == 1) 
             print (mask1)
             #Apply the mask. 
             self.emis_3d[mask1] = self.alpha*self.data['veff'][mask1]*self.data['rho'][mask1]*self.data['nH'][mask1] 
         
-        elif self.masking_method == 'flowlines_cusps':
-            flow = masking.flowlines(openggcm=self.openggcm, step='adaptive')
-            ts = process_time()
-            flow.calc_all_flowlines(point_density=point_density, max_flow_points=2000, r_inner=mask_radius)
-            te = process_time()
-            print ('Time to calc. flowlines: {}s'.format(te-ts))
-            #if point_density > 1: flow.interpolate_origin()
-            
-            #Add cusps. 
-            flow.get_cusp_mask(hemi='north', figure=False)
-            flow.get_cusp_mask(hemi='south', figure=False)
-            
-            mask1 = np.where(flow.origin == 1) 
-            #Apply the mask. 
-            self.emis_3d[mask1] = self.alpha*self.data['veff'][mask1]*self.data['rho'][mask1]*self.data['nH'][mask1] 
         
         elif self.masking_method == 'flow_cusps2':
             #Get flowlines and assign origins based on this. 
-            flow = masking3.flowlines(openggcm=self.openggcm, step=0.1, n_steps=n_steps, pd=1)
+            flow = flowlines.flowlines(openggcm=self.openggcm, step=0.1, n_steps=n_steps, pd=1)
             
             #Get cusps. 
             cusp_n = cusp_id.cusps(openggcm=self.openggcm)

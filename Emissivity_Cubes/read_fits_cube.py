@@ -8,17 +8,41 @@ from . import get_meridians as gm
 
 # This function will read the OpenGGCM ASCII files in exactly the same way as the PPMLR files. 
 
-class read_openggcm_fits():
-    '''This class will read in the OpenGGCM fits file and add the data to a python object in the same format as read_ppmlr_cube()''' 
+class read_fits_cube():
+    '''This class will read in either the PPMLR, OpenGGCM or BATSRUS fits file and add the data to a python object in a common format.''' 
     
-    def __init__(self, filename='OpenGGCM_emissivity_none_n05_vx-400vy30vz00_bx00by00bz05.fits', xmin=None, xmax=None, ymin=None, ymax=None, zmin=None, zmax=None): 
-    
-        '''This takes in the fits filename and read it''' 
+    def __init__(self, filename='OG_flow_cusps2_n05_vx-400vy30vz00_bx00by00bz05.fits', filetype='OpenGGCM', xmin=None, xmax=None, ymin=None, ymax=None, zmin=None, zmax=None): 
+        '''This takes in the fits filename and reads it.
+        
+        Parameters
+        ----------
+        filename - Name of the FITS Emissivity Cube File. 
+        filetype - Type of MHD Simulation. 'PPMLR', 'OpenGGCM', 'BATSRUS'
+        
+        xmin - Minimum x value to include. 
+        xmax - Maximum x value to include. 
+        ymin - Minimum y value to include. 
+        ymax - Maximum y value to include. 
+        zmin - Minimum z value to include. 
+        zmax - Maximum z value to include. 
+        
+        ''' 
+        
+        #Select path to correct type of emissivity cube. 
+        self.filetype = filetype 
+        if filetype.upper() == 'PPMLR':
+            self.data_path = os.environ.get("PPMLR_PATH")
+        elif filetype.upper() == 'OPENGGCM':
+            self.data_path = os.environ.get("OPENGGCM_PATH")
+        elif filetype.upper() == 'BATSRUS':
+            self.data_path = os.environ.get("BATSRUS_PATH") 
+        else: 
+            raise ValueError("Invalid filetype selected. Choose 'PPMLR', 'OPENGGCM' or 'BATSRUS'. Other MHD filetypes may be added later.")  
+        
         self.filename=filename 
-        self.openggcm_path = os.environ.get("OPENGGCM_PATH") 
         self.plot_path = os.environ.get("PLOT_PATH") 
         
-        self.filename_fits = os.path.join(self.openggcm_path, filename) 
+        self.filename_fits = os.path.join(self.data_path, filename) 
         
         # Check file exists. If it does, open it. 
         try:
