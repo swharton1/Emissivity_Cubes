@@ -9,7 +9,7 @@ class smile_limb():
     '''This object will use the spacecraft position and limb angle to work out the pointing and 
     target directions, along with everything else.''' 
     
-    def __init__(self, theta_fov=27, phi_fov=16, n_pixels=4, m_pixels=2, smile_loc=(0,-10,10), p_spacing=0.5, p_max=80, limb=20.5):
+    def __init__(self, theta_fov=27, phi_fov=16, n_pixels=4, m_pixels=2, smile_loc=(0,-10,10), p_spacing=0.5, p_max=80, limb=20.3):
         '''This takes in all the initial parameters 
         
         Parameters
@@ -44,8 +44,8 @@ class smile_limb():
         #Get earth angle. 
         self.r_angle = np.arcsin(1/self.smag) 
         
-        #Get combined limb, r angle and half FOV angle. 
-        self.limb_c = self.limb + self.r_angle + self.phi_fov/2.
+        #Get combined limb and r angle.
+        self.limb_c = self.limb + self.r_angle
         
         #Get look direction vector. 
         self.get_look_direction()
