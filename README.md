@@ -27,7 +27,9 @@ ppmlr_image.py - Code to produce an image through a PPMLR cube. Will be made to 
 
 smile_fov.py - Object to create the pointing directions and LOS coordinates for SXI. This version is unconstrained and can be pointed anywhere. 
 
-smile_fov_limb.py Object to create the pointing directions and LOS coordinates for SXI, including the constraints to keep a constant angle with the limb of the earth, always pointing at the GSE x axis and having the x axis of the image pointing towards the Earth. 
+smile_fov_limb.py Object to create the pointing directions and LOS coordinates for SXI, including the constraints to keep a constant angle with the limb of the earth, always pointing at the GSE x axis and having the x axis of the image pointing towards the Earth. UPDATED VERSION HAS BEEN ADDED. 
+
+smile_fov_limb_old.py Previous constrained SMILE object that had an error in the orientation of SXI. DON'T USE THIS ONE. It's here for reference for those that have used the previous code.  
 
 read_batsrus.py - Code to read in emissivity cubes derived from BATSRUS simulations. Based on emissivit cubes created by Andrey Samsonov in the same format as the emissivity cubes derived from PPMLR by Tianran Sun. 
 

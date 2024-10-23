@@ -1,13 +1,15 @@
-#This version will base the target location and pointing directions on the correct spacecraft constraints around the limb angle. 
+#This version includes the constraints on pointing direction but calculates the orientation of the image afterwards instead of working out a tilt angle and applying it in retrospect. 
 
 import numpy as np 
 import matplotlib.pyplot as plt
 from time import process_time
 import os
+from matplotlib.patches import Wedge, Polygon, Circle, Arc
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 class smile_limb():
-    '''This object will use the spacecraft position and limb angle to work out the pointing and 
-    target directions, along with everything else.''' 
+    '''This object will use the spacecraft position and limb angle to work out 
+    the pointing and target directions, along with everything else.''' 
     
     def __init__(self, theta_fov=27, phi_fov=16, n_pixels=4, m_pixels=2, smile_loc=(0,-10,10), p_spacing=0.5, p_max=80, limb=20.3):
         '''This takes in all the initial parameters 
@@ -21,6 +23,8 @@ class smile_limb():
         smile_loc - vector for the position of smile in magnetospheric xyz coords. 
         p_spacing - space in RE along LOS between points at which to calculate. 
         p_max - maximum distance in RE from spacecraft it will integrate to. 
+            If it is set to None, it will be made equal to the length of vector L, 
+            the look vector to the aim point.  
         
         '''
         
@@ -35,7 +39,7 @@ class smile_limb():
         self.p_spacing = p_spacing
         self.p_max = p_max 
         
-        #Get magnitude of spacecraft vector. 
+        #Get magnitude of spacecraft vector - its radial position. 
         self.smag = np.sqrt(self.smile_loc[0]**2 + self.smile_loc[1]**2 + self.smile_loc[2]**2)
         
         #Get alpha angle. 
@@ -44,30 +48,18 @@ class smile_limb():
         #Get earth angle. 
         self.r_angle = np.arcsin(1/self.smag) 
         
-        #Get combined limb and r angle.
-        self.limb_c = self.limb + self.r_angle
+        #Get combined limb and r angle. 
+        #Added correction - 20.3 deg to centre of FOV, not edge. 
+        self.limb_c = self.limb + self.r_angle #+ self.phi_fov/2.
         
         #Get look direction vector. 
         self.get_look_direction()
         
-        #Get target vector. 
+        #Get target vector (aim). 
         self.target_loc = self.smile_loc + self.L 
         
         #Get b vector. 
         self.get_b_vector()
-        
-        #Define GSE unit vectors. 
-        self.x_unit = np.array([1,0,0])
-        self.y_unit = np.array([0,1,0])
-        self.z_unit = np.array([0,0,1])
-        
-        #Get nhat, the unit vector perpendicular to the vertical meridian containing the look vector. 
-        self.n = np.cross(self.z_unit, self.L) 
-        self.n_unit = self.n/np.sqrt(self.n[0]**2 + self.n[1]**2 + self.n[2]**2) 
-        
-        #Get the SXI tilt angle. 
-        cos_tilt = np.dot(-self.b_unit, self.n_unit)
-        self.sxi_tilt = -np.arccos(cos_tilt) 
         
         #Get the colatitude of the look direction. 
         cos_colat = self.L[2]/self.Lmag 
@@ -76,48 +68,45 @@ class smile_limb():
         #Get the longitude of the look direction. 
         self.sxi_phi = np.arctan2(self.L[1], self.L[0])
         
-        print ('Tilt = ', np.rad2deg(self.sxi_tilt))
-        print ('Colat = ', np.rad2deg(self.sxi_theta))
-        print ('Long. = ', np.rad2deg(self.sxi_phi)) 
+        #Set LoS calculations to only got to the target point if p_max is None. 
+        if self.p_max is None:
+            self.p_max = self.Lmag
         
-        #Set LoS calculations to only got to the target point. 
-        self.p_max = self.Lmag
+        #Add constraint variables. 
+        if self.smag > 7.84: 
+            self.radial_constraint = True 
+        else:
+            self.radial_constraint = False
+            
+        if self.limb_c-self.alpha_angle < np.deg2rad(90-35.83):
+            self.solar_constraint = True
+        else:
+            self.solar_constraint = False 
         
-        ts = process_time()
-        print ("Get theta and phi for each pixel:")
-        self.get_theta_and_phi_all_pixels()
-        te = process_time()
-        print ("Time = {:.1f}s".format(te-ts))
+        
+            
+        #Get unit vectors for the image. 
+        self.xi_unit = self.b_unit
 
-        ts = process_time()
-        print ("Get vector for each pixel:")
-        self.get_vector_for_all_pixels()
-        te = process_time()
-        print ("Time = {:.1f}s".format(te-ts))
-
-        ts = process_time()
-        print ("Tilt camera: ")
-        self.tilt_sxi_camera() 
-        te = process_time()
-        print ("Time = {:.1f}s".format(te-ts))
-
-        ts = process_time()
-        print ("Rotate camera: ")
-        self.rotate_camera()
-        te = process_time()
-        print ("Time = {:.1f}s".format(te-ts))
-
-        ts = process_time()
-        print ("Get LOS coordinates: ")
+        self.yi = np.cross(self.b, self.L) 
+        self.yi_unit = self.yi/(self.yi[0]**2 + self.yi[1]**2 + self.yi[2]**2)**0.5 
+        
+        #Get the arrays of angles for the pixels. 
+        self.get_theta_and_phi_all_pixels() 
+        
+        #Get the unit vectors for each pixel. 
+        self.get_pixel_unit_vectors() 
+        
+        #Get the colatitude and longitude of each pixel. 
+        self.get_pixel_colat_longitude()
+        
+        #Get LOS coordinates. 
         self.get_LOS_coords()
-        te = process_time()
-        print ("Time = {:.1f}s".format(te-ts))
         
+     #FUNCTIONS TO GET SOME ANGLES/VECTORS FOR LOOK DIRECTION. 
+                
     def get_alpha_angle(self):
         '''This will calculate alpha, the angle between the spacecraft vector and the perpendicular to the x axis. '''
-        #cos_alpha = np.sqrt(self.smile_loc[1]**2 + self.smile_loc[2]**2)/self.smag
-        #self.alpha_angle = np.arccos(cos_alpha) 
-        #tan_alpha = self.smile_loc[0]/np.sqrt(self.smile_loc[1]**2 + self.smile_loc[2]**2)
         self.alpha_angle = np.arctan2(self.smile_loc[0],np.sqrt(self.smile_loc[1]**2 + self.smile_loc[2]**2))
         
          
@@ -134,101 +123,61 @@ class smile_limb():
         self.L_unit = self.L/self.Lmag
     
     def get_b_vector(self):
-        '''This is a vector perpendicular to the look direction that points towards the Earth.'''
+        '''This is a vector perpendicular to the look direction that 
+        points towards the Earth.'''
         
         self.b = self.smile_loc + (self.smag*np.cos(self.limb_c)*self.L)/self.Lmag
         self.bmag = np.sqrt(self.b[0]**2 + self.b[1]**2 + self.b[2]**2) 
         self.b_unit = self.b/self.bmag 
 
-    def plot_vectors(self, elev=45, azim=45):
-        '''This will plot all the vectors to make sense of them.'''
-        
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d') 
-        
-        #Add SMILE vector. 
-        ax.plot([0, self.smile_loc[0]], [0, self.smile_loc[1]], [0, self.smile_loc[2]], 'k-', label='SMILE') 
-        
-        #Add Look vector. 
-        ax.plot([self.smile_loc[0], self.smile_loc[0]+self.L[0]], [self.smile_loc[1], self.smile_loc[1]+self.L[1]], [self.smile_loc[2], self.smile_loc[2]+self.L[2]], 'r-', label='Look')
-        
-        #Add Target vector. 
-        ax.plot([0, self.target_loc[0]], [0, self.target_loc[1]], [0, self.target_loc[2]], 'g-', label='Target') 
-        
-        #Add b vector. 
-        ax.plot([0, self.b[0]], [0, self.b[1]], [0, self.b[2]], 'c-', label='b') 
-        
-        #Add vector n unit. 
-        ax.plot([self.b[0], self.b[0]+self.n_unit[0]], [self.b[1], self.b[1]+self.n_unit[1]], [self.b[2], self.b[2]+self.n_unit[2]], 'm-', label='n_unit')
-        
-        #Sort legend and labels. 
-        ax.legend(loc='best')
-        ax.set_xlabel('x')
-        ax.set_ylabel('y')
-        ax.set_zlabel('z') 
-        ax.set_aspect('equal')
-        ax.view_init(elev=elev, azim=azim)
-        
-        #Save figure. 
-        fig.savefig(self.plot_path+'limb_example.png')
-
-#THIS IS NOW THE SAME CODE AS BEFORE WORKING OUT THE UNIT VECTORS OF EACH PIXEL. 
-
+    #CODE FOR GETTING LOOK DIRECTIONS OF EACH PIXEL. 
+    
     def get_theta_and_phi_all_pixels(self):
         '''This will calculate theta and phi for all pixels. 
-        It uses the method in Jorgensen et al. '''
+        It uses the method in Jorgensen et al. 
+        These angles are in the directions of xi_unit for phi and yi_unit for theta.'''
  
         # Create 2D arrays for i and j. 
         self.J, self.I = np.meshgrid(np.arange(self.m_pixels), np.arange(self.n_pixels))
 
         # Calculate theta and phi for each pixel. 
-        self.theta_pixels = (np.pi/2.) - (self.theta_fov/2.) + (self.theta_fov/self.n_pixels)*(self.I+0.5)
+        #THETA has changed as it's now relative to the look direction, not a colatitude. 
+        self.theta_pixels = - (self.theta_fov/2.) + (self.theta_fov/self.n_pixels)*(self.I+0.5)
         self.phi_pixels = -(self.phi_fov/2.) + (self.phi_fov/self.m_pixels)*(self.J+0.5)
-
-
-
-    def get_vector_for_all_pixels(self):
-        '''This will calculate a unit vector in xyz in camera coords for each pixel using its theta and phi. 
-        '''
-
-        # Create x, y and z arrays for the position vector of each pixel. 
-        self.pixels_x = np.sin(self.theta_pixels)*np.cos(self.phi_pixels)
-        self.pixels_y = np.sin(self.theta_pixels)*np.sin(self.phi_pixels)
-        self.pixels_z = np.cos(self.theta_pixels)
-
-    def tilt_sxi_camera(self):
-        '''This will apply a camera tilt to the pixels that rotates them around the x-axis from the x-z plane.'''
-
-        # This will rotate about the x axis. 
-        self.pixels_x_tilted = self.pixels_x
-        self.pixels_y_tilted = self.pixels_y*np.cos(self.sxi_tilt) - self.pixels_z*np.sin(self.sxi_tilt)
-        self.pixels_z_tilted = self.pixels_y*np.sin(self.sxi_tilt) + self.pixels_z*np.cos(self.sxi_tilt)
-                 
-
-    def rotate_camera(self):
-        '''This function will rotate the camera to the correct viewing direction, and rotate all the unit vectors for the pixels. '''   
-
-        # Calculate the rotation angle a from theta. a is the increase in colatitude. 
-        a = -(np.pi/2. - self.sxi_theta)
+    
+    def get_pixel_unit_vectors(self):
+        '''This will work out the pixel unit vectors relative to the look direction.
+        NEW METHOD.'''
         
-        # This will rotate about the y axis. 
-        self.pixels_x_roty = self.pixels_x_tilted*np.cos(a) + self.pixels_z_tilted*np.sin(a)
-        self.pixels_y_roty = self.pixels_y_tilted
-        self.pixels_z_roty = -self.pixels_x_tilted*np.sin(a) + self.pixels_z_tilted*np.cos(a)
-            
-        # This will rotate about the z axis. 
-        self.pixels_x_final = self.pixels_x_roty*np.cos(self.sxi_phi) - self.pixels_y_roty*np.sin(self.sxi_phi)
-        self.pixels_y_final = self.pixels_x_roty*np.sin(self.sxi_phi) + self.pixels_y_roty*np.cos(self.sxi_phi)
-        self.pixels_z_final = self.pixels_z_roty
-              
+        #Get vectors to flat plane of image. 
+        self.pixels_x = self.L_unit[0] + np.tan(self.phi_pixels)*self.xi_unit[0] + np.tan(self.theta_pixels)*self.yi_unit[0]
+        self.pixels_y = self.L_unit[1] + np.tan(self.phi_pixels)*self.xi_unit[1] + np.tan(self.theta_pixels)*self.yi_unit[1]
+        self.pixels_z = self.L_unit[2] + np.tan(self.phi_pixels)*self.xi_unit[2] + np.tan(self.theta_pixels)*self.yi_unit[2]
+        
+        #Get magnitude. 
+        self.pixels_mag = np.sqrt(self.pixels_x**2 + self.pixels_y**2 + self.pixels_z**2) 
+        
+        #Get unit vectors to unit sphere. 
+        self.pixels_x_final = self.pixels_x/self.pixels_mag 
+        self.pixels_y_final = self.pixels_y/self.pixels_mag 
+        self.pixels_z_final = self.pixels_z/self.pixels_mag 
+    
+    def get_pixel_colat_longitude(self):
+        '''Get the colatitude and longitude of each pixel. May be useful in future.'''
+
+        #Colatitude. 
+        self.pixels_colatitude = np.arccos(self.pixels_z_final/self.pixels_mag)  
+        
+        #Longitude. 
+        self.pixels_longitude = np.arctan2(self.pixels_y_final,self.pixels_x_final)  
+    
     def get_LOS_coords(self):
-        '''This will calculate the coordinates along the LOS for a given coordinate spacing.'''
+        '''This will calculate the coordinates along the LOS for a given 
+        coordinate spacing. Same as before. '''
 
         # Array of points along any given LOS. 
         p = np.arange(0,self.p_max, step=self.p_spacing)+self.p_spacing
-        # pall = np.zeros((self.n_pixels, self.m_pixels, p.size))
-        # pall[:,:] = p
-
+       
         self.xpos = np.zeros((self.n_pixels, self.m_pixels, p.size))
         self.ypos = np.zeros((self.n_pixels, self.m_pixels, p.size))
         self.zpos = np.zeros((self.n_pixels, self.m_pixels, p.size))
@@ -241,37 +190,52 @@ class smile_limb():
                 self.xpos[i][j] = self.smile_loc[0] + p*self.pixels_x_final[i][j]
                 self.ypos[i][j] = self.smile_loc[1] + p*self.pixels_y_final[i][j]
                 self.zpos[i][j] = self.smile_loc[2] + p*self.pixels_z_final[i][j]
-
-    def plot_unit_vectors(self, elev=45, azim=0):
-        '''This will plot the position vectors in 3D space.
-        elev - sets the viewing elevation. 0 looks along the x-y plane. 
-        azim - 0 looks along the x axis. 90 looks along the y axis. 
+                
+                
+                
+    #PLOTTING FUNCTIONS. 
+    
         
-        '''
-
+    def plot_vectors(self, elev=45, azim=45):
+        '''This will plot all the vectors to make sense of them.'''
+        #plt.close("all")
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+        ax = fig.add_subplot(111, projection='3d') 
         
-        ax.scatter3D(self.pixels_x, self.pixels_y, self.pixels_z, c='k', marker='o')
-        ax.scatter3D(self.pixels_x_tilted, self.pixels_y_tilted, self.pixels_z_tilted, c='r', marker='o')
-        ax.scatter3D(self.pixels_x_roty, self.pixels_y_roty, self.pixels_z_roty, c='b', marker='o')
-        ax.scatter3D(self.pixels_x_final, self.pixels_y_final, self.pixels_z_final, c='g', marker='o')
-       
+        #Add SMILE vector. 
+        ax.plot([0, self.smile_loc[0]], [0, self.smile_loc[1]], [0, self.smile_loc[2]], 'b-', label='SMILE') 
+        
+        #Add Look vector. 
+        ax.plot([self.smile_loc[0], self.smile_loc[0]+self.L[0]], [self.smile_loc[1], self.smile_loc[1]+self.L[1]], [self.smile_loc[2], self.smile_loc[2]+self.L[2]], 'r-', label='Look')
+        
+        #Add Target vector. 
+        ax.plot([0, self.target_loc[0]], [0, self.target_loc[1]], [0, self.target_loc[2]], 'g-', label='Aim') 
+        
+        #Add b vector. 
+        ax.plot([0, self.b[0]], [0, self.b[1]], [0, self.b[2]], 'c-', label='b') 
+        
+        #Add xi unit vector. 
+        ax.plot([self.b[0], self.b[0]+self.xi_unit[0]], [self.b[1], self.b[1]+self.xi_unit[1]], [self.b[2], self.b[2]+self.xi_unit[2]], 'k-', label='xi')
+        
+        #Add yi unit vector. 
+        ax.plot([self.b[0], self.b[0]+self.yi_unit[0]], [self.b[1], self.b[1]+self.yi_unit[1]], [self.b[2], self.b[2]+self.yi_unit[2]], c='orange', label='yi')
+        
+        self.add_earth(ax)
+        
+        #Sort legend and labels. 
+        ax.legend(loc='best')
         ax.set_xlabel('x')
         ax.set_ylabel('y')
-        ax.set_zlabel('z')
-        ax.set_xlim(-1.2,1.2)
-        ax.set_ylim(-1.2,1.2)
-        ax.set_zlim(-1.2,1.2) 
-
-        ax.view_init(elev,azim) 
-    
-        fig.savefig(self.plot_path+'limb_unit_vectors.png')
-         
+        ax.set_zlabel('z') 
+        ax.set_aspect('equal')
+        ax.view_init(elev=elev, azim=azim)
         
+        #Save figure. 
+        fig.savefig(self.plot_path+'limb_example.png')
+
     def plot_LOS_vectors(self, elev=45, azim=45):
         '''This will plot the LOS vectors from the spacecraft position.'''
-
+        plt.close("all")
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
@@ -292,7 +256,7 @@ class smile_limb():
         #Add Look vector. 
         ax.plot([self.smile_loc[0], self.smile_loc[0]+self.L[0]], [self.smile_loc[1], self.smile_loc[1]+self.L[1]], [self.smile_loc[2], self.smile_loc[2]+self.L[2]], 'r-', label='Look')
         
-        #Add Target vector. 
+        #Add Target vector (aim). 
         ax.plot([0, self.target_loc[0]], [0, self.target_loc[1]], [0, self.target_loc[2]], 'g-', label='Target') 
         
         #Add b vector. 
@@ -301,6 +265,10 @@ class smile_limb():
         #Add the FOV boundaries. 
         self.add_fov_boundaries(ax, lw=2) 
         
+        self.add_fov_rectangle(ax, color='gray')
+        
+        #Add title to show smile location. 
+        ax.set_title('SMILE: ({:.2f},{:.2f},{:.2f})\nAim: ({:.2f},{:.2f},{:.2f}) '.format(self.smile_loc[0], self.smile_loc[1], self.smile_loc[2], self.target_loc[0], self.target_loc[1], self.target_loc[2]))
         
         ax.set_xlabel('x')
         ax.set_ylabel('y')
@@ -310,9 +278,10 @@ class smile_limb():
         ax.set_aspect('equal') 
         
         ax.view_init(elev,azim) 
-        
-        fig.savefig(self.plot_path+'limb_los_vectors_SMILE_({},{},{})_elev_{}_azim_{}.png'.format(self.smile_loc[0], self.smile_loc[1], self.smile_loc[2], elev, azim))
     
+    
+    
+        
     def add_fov_boundaries(self, ax2, color='k', lw=2):
         '''This will add the FOV boundaries in black/white. '''
         
@@ -327,7 +296,21 @@ class smile_limb():
         ax2.plot([self.xpos[0][-1][-1],self.xpos[-1][-1][-1]], [self.ypos[0][-1][-1],self.ypos[-1][-1][-1]], [self.zpos[0][-1][-1],self.zpos[-1][-1][-1]], color, lw=lw)
         ax2.plot([self.xpos[-1][-1][-1],self.xpos[-1][0][-1]], [self.ypos[-1][-1][-1],self.ypos[-1][0][-1]], [self.zpos[-1][-1][-1],self.zpos[-1][0][-1]], color, lw=lw)
         ax2.plot([self.xpos[-1][0][-1],self.xpos[0][0][-1]], [self.ypos[-1][0][-1],self.ypos[0][0][-1]], [self.zpos[-1][0][-1],self.zpos[0][0][-1]], color, lw=lw)
-                   
+    
+    def add_fov_rectangle(self, ax, color='gray'):
+        '''This will hopefully add a rectangle to the end of the FOV to make its shape clearer.'''
+        
+        v1 = [self.xpos[0][0][-1], self.ypos[0][0][-1], self.zpos[0][0][-1]] 
+        v2 = [self.xpos[0][-1][-1], self.ypos[0][-1][-1], self.zpos[0][-1][-1]] 
+        v3 = [self.xpos[-1][-1][-1], self.ypos[-1][-1][-1], self.zpos[-1][-1][-1]] 
+        v4 = [self.xpos[-1][0][-1], self.ypos[-1][0][-1], self.zpos[-1][0][-1]] 
+        
+        rects = [[v1, v2, v3, v4, v1]]
+        ax.add_collection3d(Poly3DCollection(rects, color=color, alpha=0.5, edgecolor=None))
+        
+        return 
+        
+           
     def add_earth(self, ax):
         '''This will add a sphere for the Earth. '''
         
