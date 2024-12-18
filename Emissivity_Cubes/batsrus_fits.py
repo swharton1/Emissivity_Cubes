@@ -32,16 +32,23 @@ class convert_to_fits():
         self.hdu.header 
         
         #Add the solar wind information. 
-        self.hdu.header['bx'] = self.batsrus.bx
-        self.hdu.header['by'] = self.batsrus.by
-        self.hdu.header['bz'] = self.batsrus.bz
-        self.hdu.header['vx'] = self.batsrus.vx
-        self.hdu.header['vy'] = self.batsrus.vy
-        self.hdu.header['vz'] = self.batsrus.vz
-        self.hdu.header['density'] = self.batsrus.density
-        self.hdu.header['pdyn'] = self.batsrus.dyn_pressure 
-        self.hdu.header['pmag'] = self.batsrus.mag_pressure
-        self.hdu.header['temp'] = self.batsrus.temp 
+        self.hdu.header['bx'] = (self.batsrus.bx, 'IMF Bx [nT]')
+        self.hdu.header['by'] = (self.batsrus.by, 'IMF By [nT]')
+        self.hdu.header['bz'] = (self.batsrus.bz, 'IMF Bz [nT]')
+        self.hdu.header['vx'] = (self.batsrus.vx, 'Solar Wind Vx [km/s]')
+        self.hdu.header['vy'] = (self.batsrus.vy, 'Solar Wind Vy [km/s]')
+        self.hdu.header['vz'] = (self.batsrus.vz, 'Solar Wind Vz [km/s]')
+        self.hdu.header['density'] = (self.batsrus.density, 'Solar Wind Density [/cm^3]')
+        self.hdu.header['pdyn'] = (self.batsrus.dyn_pressure, 'Solar Wind Dynamic Pressure [nPa]') 
+        self.hdu.header['pmag'] = (self.batsrus.mag_pressure, 'Solar Wind Magnetic Pressure [nPa]')
+        self.hdu.header['temp'] = (self.batsrus.temp, 'Solar Wind Temperature [K]')  
+        
+        #Add solar wind flux in cm2/s to header. 
+        flux = self.batsrus.vx*1e5*self.batsrus.density
+        self.hdu.header['flux'] = (flux, 'Solar Wind Proton Flux [cm^2/s]') 
+        
+        #Add history comment of where the original file came from. 
+        self.hdu.header['original'] = self.filename 
         
         #Add HDUs for x, y and z arrays. 
         self.hdux = pyfits.ImageHDU(data=self.batsrus.x, name='x')
