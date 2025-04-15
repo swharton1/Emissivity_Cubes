@@ -6,6 +6,9 @@ from . import calc_flowlines
 from . import cusp_id 
 from . import get_meridians
 from . import read_fits_cube
+from . import read_ascii_cube
+from . import calc_pressures
+from . import get_earth 
 
 from . import read_ppmlr
 from . import ppmlr_fits

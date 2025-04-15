@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from astropy.io import fits as pyfits 
 
 from . import get_meridians as gm 
-
+from . import get_earth 
+from . import calc_pressures 
 # This function will read the OpenGGCM ASCII files in exactly the same way as the PPMLR files. 
 
 class read_fits_cube():
@@ -66,10 +67,10 @@ class read_fits_cube():
 
 
                 # Get dynamic pressure.
-                self.dyn_pressure = self.calc_dynamic_pressure()
+                self.dyn_pressure = calc_pressures.calc_dynamic_pressure(self.vx, self.vy, self.vz, self.density)
 
                 # Get magnetic pressure. 
-                self.mag_pressure = self.calc_magnetic_pressure()
+                self.mag_pressure = calc_pressures.calc_magnetic_pressure(self.bx, self.by, self.bz)
                 
                 #Get the number of indices in the x, y and z directions. 
                 self.n = np.array([self.primary_header['NAXIS1'], self.primary_header['NAXIS2'], self.primary_header['NAXIS3']]).astype('int32')
@@ -93,6 +94,10 @@ class read_fits_cube():
                     self.y_3d = self.y_3d[:,:,i[0]]
                     self.z_3d = self.z_3d[:,:,i[0]]
                     self.eta_3d = self.eta_3d[:,:,i[0]]
+                    
+                    #Bound 1D x array too. 
+                    j = np.where(self.x >= xmin) 
+                    self.x = self.x[j]
 
                 if xmax is not None: 
                     i = np.where(self.x_3d[0][0] < xmax) 
@@ -101,6 +106,10 @@ class read_fits_cube():
                     self.z_3d = self.z_3d[:,:,i[0]]
                     self.eta_3d = self.eta_3d[:,:,i[0]]
                 
+                    #Bound 1D x array too. 
+                    j = np.where(self.x < xmax) 
+                    self.x = self.x[j]
+                    
                 if ymin is not None: 
                     j = np.where(self.y_3d[0,:,0] >= ymin)
                     self.x_3d = self.x_3d[:,j[0],:]
@@ -108,6 +117,10 @@ class read_fits_cube():
                     self.z_3d = self.z_3d[:,j[0],:]
                     self.eta_3d = self.eta_3d[:,j[0],:]
 
+                    #Bound 1D x array too. 
+                    j = np.where(self.y >= ymin) 
+                    self.y = self.y[j]
+                    
                 if ymax is not None: 
                     j = np.where(self.y_3d[0,:,0] < ymax)
                     self.x_3d = self.x_3d[:,j[0],:]
@@ -115,6 +128,10 @@ class read_fits_cube():
                     self.z_3d = self.z_3d[:,j[0],:]
                     self.eta_3d = self.eta_3d[:,j[0],:]
 
+                    #Bound 1D x array too. 
+                    j = np.where(self.y < ymax) 
+                    self.y = self.y[j]
+                    
                 if zmin is not None:
                     k = np.where(self.z_3d[:,0,0] >= zmin)
                     self.x_3d = self.x_3d[k[0],:,:]
@@ -122,6 +139,10 @@ class read_fits_cube():
                     self.z_3d = self.z_3d[k[0],:,:]
                     self.eta_3d = self.eta_3d[k[0],:,:]
 
+                    #Bound 1D x array too. 
+                    j = np.where(self.z >= zmin) 
+                    self.z = self.z[j]
+                    
                 if zmax is not None:
                     k = np.where(self.z_3d[:,0,0] < zmax)
                     self.x_3d = self.x_3d[k[0],:,:]
@@ -129,49 +150,61 @@ class read_fits_cube():
                     self.z_3d = self.z_3d[k[0],:,:]
                     self.eta_3d = self.eta_3d[k[0],:,:]
 
+                    #Bound 1D x array too. 
+                    j = np.where(self.z < zmax) 
+                    self.z = self.z[j]
 
         except (FileNotFoundError, IOError):
             print ("Filename not found: {}".format(self.filename))
+            
+        self.get_subsolar_magnetopauses()
 
     def __repr__(self):
         return ("Class to read in the PPMLR emissivity cube from the fits file: {}".format(self.filename))
 
 
-    def calc_dynamic_pressure(self):
-        '''Calculate this as it's a parameter in some models.'''
 
-         # Assume average ion mass = mass of proton. 
-        mp = 0.00000000000000000000000000167
+    def get_subsolar_magnetopauses(self):
+        '''This will get a few definitions of the subsolar magnetopause.'''
         
-        # Calculate v in m/s 
-        v = (self.vx**2 + self.vy**2 + self.vz**2)**0.5
-        v = v*1000 
+        # For the slice with constant y. 
+        y_uniq = abs(self.y_3d[0,:,0])
+        i_y = np.where(y_uniq == min(y_uniq))[0][0]
 
-        # Convert number of particles /cm^3 to /m^3. 
-        n = self.density*1000000
+        # For the slice with constant z. 
+        z_uniq = abs(self.z_3d[:,0,0])
+        i_z = np.where(z_uniq == min(z_uniq))[0][0]
 
-        # Calculate dynamic pressure first in Pascals, then nPa. 
-        dyn_pressure = 0.5*mp*n*(v**2)
-        dyn_pressure = dyn_pressure*1000000000
-
-        return (dyn_pressure)
-
-    def calc_magnetic_pressure(self):
-        '''Calculate the magnetic pressure'''
-
-        # Calculate magnitude of B in T. 
-        B = (self.bx**2 + self.by**2 + self.bz**2)**0.5
-        B = B*0.000000001
-
-        # mu0
-        mu0 = 4*np.pi*0.0000001
-
-        # Calculate magnetic pressure in Pa, then nPa. 
-        mag_pressure = (B**2)/(2*mu0)
-        mag_pressure = mag_pressure*1000000000
-
-        return mag_pressure
+        # Get data along sun-earth line. 
+        xp = self.x_3d[i_z,i_y]
+        yp = self.y_3d[i_z,i_y]
+        zp = self.z_3d[i_z,i_y]
+        etad = self.eta_3d[i_z,i_y]
         
+        # Get max Ix second. 
+        ix_index = np.where(etad == etad.max())
+        self.maxIx = xp[ix_index][0]
+        self.maxIx_eta = etad.max()
+        
+        # Get max dIx third. 
+        # Get difference between etad values. 
+        if self.filetype == 'OPENGGCM':
+            dIx = -np.array([etad[i+1] - etad[i] for i in range(len(etad) - 1)])
+        else:
+            dIx = np.array([etad[i+1] - etad[i] for i in range(len(etad) - 1)])
+            
+        # Get centre point positions for radial direction. 
+        xp_cent = xp + (xp[1]-xp[0])/2
+        xp_cent = xp_cent[0:-1]
+
+        dix_index = np.where(dIx == dIx.max())
+        self.maxdIx = xp[dix_index][0]
+
+        # Get f=0.25 
+        dr = xp[ix_index] - xp[dix_index]
+        self.f = xp[dix_index] + 0.25*dr[0] 
+        
+       
     def plot_both_planes(self, cmap="hot", levels=100, vmin=-8, vmax=-4, save=False, savetag=""):
         '''This will plot in the X-Z and X-Y planes side by side. 
         
@@ -186,23 +219,8 @@ class read_fits_cube():
         
         '''
 
-        #Get meridian data for etad. 
-        xp_y, yp_y, zp_y, etad_y, xp_z, yp_z, zp_z, etad_z = gm.calculate_meridian_planes(self.x_3d, self.y_3d, self.z_3d, self.eta_3d)
-
-        # Calculate log10 eta values. If eta = 0, set log(eta) = vmin  
-        letad_y = np.zeros(etad_y.shape)+vmin
-        i = np.where(etad_y != 0)
-        letad_y[i] = np.log10(etad_y[i])
-        j = np.where(letad_y < vmin)
-        letad_y[j] = vmin 
-
-
-         # Calculate log10 eta values. If eta = 0, set log(eta) = vmin 
-        letad_z = np.zeros(etad_z.shape)+vmin
-        i = np.where(etad_z != 0)
-        letad_z[i] = np.log10(etad_z[i])
-        j = np.where(letad_z < vmin)
-        letad_z[j] = vmin 
+        #Get PPMLR data. 
+        xp_y, zp_y, letad_y, xp_z, yp_z, letad_z = gm.get_log_emissivity(self.x_3d, self.y_3d, self.z_3d, self.eta_3d, vmin=vmin, vmax=vmax) 
 
 
         # Create a filename label so you know which file you plotted. 
@@ -228,7 +246,7 @@ class read_fits_cube():
         ax1.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax1, rotation=-90)
+        get_earth.make_earth(ax1, rotation=-90)
 
          # Constant z. 
         cont2 = ax2.contourf(xp_z, yp_z, letad_z, cmap='hot', levels=levels, vmin=vmin, vmax=vmax)
@@ -247,7 +265,7 @@ class read_fits_cube():
         cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax2, rotation=-90)
+        get_earth.make_earth(ax2, rotation=-90)
 
         # Option to save figure. 
         if save: 
@@ -256,23 +274,6 @@ class read_fits_cube():
 
 
 
-
-    def make_earth(self, ax, rotation=0):
-        '''This will add a little plot of the Earth on top for reference. '''
-
-        # Add white circle first. 
-        r=1
-        circle = Circle((0,0), r, facecolor='w', edgecolor='navy')
-        ax.add_patch(circle)
-
-        # Add nightside. 
-        theta2 = np.arange(181)-180+rotation
-        xval2 = np.append(r*np.cos(theta2*(np.pi/180)),0)
-        yval2 = np.append(r*np.sin(theta2*(np.pi/180)),0)
-        verts2 = [[xval2[i],yval2[i]] for i in range(len(xval2))]
-        
-        polygon2 = Polygon(verts2, closed=True, edgecolor='navy', facecolor='navy', alpha=1) 
-        ax.add_patch(polygon2)    
         
         
         
@@ -507,7 +508,7 @@ class read_openggcm_cube():
         ax1.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax1, rotation=-90)
+        get_earth.make_earth(ax1, rotation=-90)
 
          # Constant z. 
         cont2 = ax2.contourf(xp_z, yp_z, letad_z, cmap='hot', levels=levels, vmin=vmin, vmax=vmax)
@@ -526,7 +527,7 @@ class read_openggcm_cube():
         cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax2, rotation=-90)
+        get_earth.make_earth(ax2, rotation=-90)
 
         # Option to save figure. 
         if save: 
@@ -534,41 +535,3 @@ class read_openggcm_cube():
 
 
 
-
-    def make_earth(self, ax, rotation=0):
-        '''This will add a little plot of the Earth on top for reference. '''
-
-        # Add white circle first. 
-        r=1
-        circle = Circle((0,0), r, facecolor='w', edgecolor='navy')
-        ax.add_patch(circle)
-
-        # Add nightside. 
-        theta2 = np.arange(181)-180+rotation
-        xval2 = np.append(r*np.cos(theta2*(np.pi/180)),0)
-        yval2 = np.append(r*np.sin(theta2*(np.pi/180)),0)
-        verts2 = [[xval2[i],yval2[i]] for i in range(len(xval2))]
-        
-        polygon2 = Polygon(verts2, closed=True, edgecolor='navy', facecolor='navy', alpha=1) 
-        ax.add_patch(polygon2)
-
-
-#    def plot_scatter3D(self, s=2, marker=",", cmap="Greys", alpha=0.5, elev=45, azim=45):
-#        '''This will just plot a basic scatter plot of the data. 
-#        It could look messy...'''
-
-#        import matplotlib.pyplot as plt 
-
-#        fig = plt.figure()
-#        ax = fig.add_subplot(111, projection='3d')
-        # ax.contourf(self.x_3d[0], self.y_3d[0], self.eta_3d[0], cmap="Greys")
-#        scat = ax.scatter3D(self.x_3d, self.y_3d, self.z_3d, c=np.log(self.eta_3d), s=s, marker=marker,cmap=cmap, alpha=alpha)
-#        ax.set_xlabel("x")
-#        ax.set_ylabel("y")
-#        ax.set_zlabel("z")
-        # Prev. y,z,x
-#        ax.view_init(elev, azim)
-#        cbar = plt.colorbar(scat, ax=ax)
-#        cbar.set_label("Log Eta")
-        
-   

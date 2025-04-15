@@ -1,6 +1,50 @@
 #This will work out the XZ and XY planes from a 3D dataset. 
 import numpy as np 
 
+def get_log_emissivity(x, y, z, eta, vmin, vmax):
+    '''This will get the log of the emissivity in XZ and XY planes.
+
+    Parameters
+    ----------
+    x - 3D grid.
+    y - 3D grid. 
+    z - 3D grid. 
+    eta - 3D grid. 
+    vmin - minimum logged emissivity to show. 
+    vmax - maximum logged emissivity to show. 
+
+    Returns
+    -------
+    xp_y - 2D grid of x values for XZ plane. 
+    zp_y - 2D grid of z values for XZ plane. 
+    leta_y - 2D grid of logged eta values for XZ plane. 
+    xp_z - 2D grid of x values for XY plane. 
+    yp_z - 2D grid of y values for XY plane. 
+    leta_z - 2D grid of logged eta values for XY plane.
+ 
+    '''
+
+    #Get meridian data for etad. 
+    xp_y, yp_y, zp_y, eta_y, xp_z, yp_z, zp_z, eta_z = calculate_meridian_planes(x, y, z, eta)
+
+    # Calculate log10 eta values. If eta = 0, set log(eta) = vmin  
+    #XY plane. 
+    leta_y = np.zeros(eta_y.shape)+vmin
+    i = np.where(eta_y != 0)
+    leta_y[i] = np.log10(eta_y[i])
+    j = np.where(leta_y < vmin)
+    leta_y[j] = vmin 
+
+    #XZ plane. 
+    leta_z = np.zeros(eta_z.shape)+vmin
+    i = np.where(eta_z != 0)
+    leta_z[i] = np.log10(eta_z[i])
+    j = np.where(leta_z < vmin)
+    leta_z[j] = vmin 
+
+    return xp_y, zp_y, leta_y, xp_z, yp_z, leta_z
+
+
 def calculate_meridian_planes(x_3d, y_3d, z_3d, var_3d):
     '''This will actually work out the XZ and XY plane data properly by taking means between the nearest planes
         
@@ -67,7 +111,7 @@ def calculate_meridian_planes(x_3d, y_3d, z_3d, var_3d):
     var_z = (var_zl+var_zu)/2. 
         
     return xp_y, yp_y, zp_y, var_y, xp_z, yp_z, zp_z, var_z 
-        
+    
     
 def calculate_sunearth_line(x_3d, y_3d, z_3d, var_3d):
     '''This will correctly calculate the Earth-Sun line data along the x axis. 
