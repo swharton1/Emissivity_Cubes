@@ -19,6 +19,10 @@ from . import smile_fov_limb
 from . import batsrus_fits 
 from . import read_batsrus
 
+from . import gse_gsm 
+from . import convert_cube_to_gse
+from . import transformations
+
 import os 
 #Set your paths to the data here and where you want any plots saving too. 
 if "PPMLR_PATH" not in os.environ:
@@ -31,5 +35,5 @@ if "BATSRUS_PATH" not in os.environ:
     os.environ["BATSRUS_PATH"] = "/data/smile/BATSRUS/"
     
 if "PLOT_PATH" not in os.environ:
-    os.environ["PLOT_PATH"] = "/scratch/smile/sw682/"
-
+    #os.environ["PLOT_PATH"] = "/scratch/smile/sw682/"
+    os.environ["PLOT_PATH"] = "/home/s/sw682/Code/plots/Emissivity_plots/" 

@@ -72,6 +72,7 @@ class read_fits_cube():
                 # Get magnetic pressure. 
                 self.mag_pressure = calc_pressures.calc_magnetic_pressure(self.bx, self.by, self.bz)
                 
+                
                 #Get the number of indices in the x, y and z directions. 
                 self.n = np.array([self.primary_header['NAXIS1'], self.primary_header['NAXIS2'], self.primary_header['NAXIS3']]).astype('int32')
 
