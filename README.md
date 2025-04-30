@@ -1,5 +1,5 @@
 # Emissivity_Cubes
-All the code needed to read and produce emissivity cubes. 
+All the code needed to read and produce emissivity cubes. Now reads some key functions from SXI_Core, but the functions in SXI_Core to read in data files and ecubes are kept here so we have a version of everything here. 
 
 Setup: 
 The only setup you should need to do is open Emissivity_Cubes/__init__.py and edit the filepaths to where you keep the data, and where you want any plots to go. 
@@ -17,7 +17,6 @@ calc_flowlines.py - This takes in the object from read_openggcm_mhd.py and calcu
 
 cusp_id.py - Implementation of the cusp identification algorithm from Sun et al. (2019). Used because the flowlines method can miss the cusps. Used to unmask the cusps after the flowlines method by calc_emissivity.py 
 
-get_meridians.py - Gets the XY and XZ meridian planes out of a 3D datacube for plotting. 
 
 read_ppmlr.py - Code to read in the ASCII PPMLR files. 
 

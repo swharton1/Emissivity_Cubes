@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Polygon, Circle
 
 from . import read_batsrus 
-from . import get_meridians as gm 
+from SXI_Core import get_meridians as gm 
 
 class convert_to_fits():
     '''This class will read in an ASCII BATSRUS file and convert it to a fits file.'''

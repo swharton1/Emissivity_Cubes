@@ -6,6 +6,9 @@ from time import process_time
 import os
 from matplotlib.patches import Wedge, Polygon, Circle, Arc
 
+from SXI_Core import get_earth 
+from SXI_Core import add_fov_boundaries
+
 class smile_limb():
     '''This object will use the spacecraft position and limb angle to work out the pointing and 
     target directions, along with everything else.''' 
@@ -213,7 +216,7 @@ class smile_limb():
         #Add the yimage unit vector. 
         ax.plot([self.b[0], self.b[0]+self.yimage_unit[0]], [self.b[1], self.b[1]+self.yimage_unit[1]], [self.b[2], self.b[2]+self.yimage_unit[2]], color='c', linestyle='-')
         
-        self.add_earth(ax)
+        get_earth.make_earth_3d(ax)
         
         #Sort legend and labels. 
         ax.legend(loc='best')
@@ -353,7 +356,7 @@ class smile_limb():
         ax.plot([0, self.b[0]], [0, self.b[1]], [0, self.b[2]], 'c-', label='b') 
         
         #Add the FOV boundaries. 
-        self.add_fov_boundaries(ax, lw=2) 
+        add_fov_boundaries.add_fov_boundaries(ax, self.xpos, self.ypos, self.zpos, lw=2) 
         
         #Add title to show smile location. 
         ax.set_title('SMILE: ({:.2f},{:.2f},{:.2f})\nAim: ({:.2f},{:.2f},{:.2f}) '.format(self.smile_loc[0], self.smile_loc[1], self.smile_loc[2], self.target_loc[0], self.target_loc[1], self.target_loc[2]))
@@ -362,7 +365,7 @@ class smile_limb():
         ax.set_ylabel('y')
         ax.set_zlabel('z')
         
-        self.add_earth(ax)
+        get_earth.make_earth_3d(ax)
         ax.set_aspect('equal') 
         
         ax.view_init(elev,azim) 
@@ -380,7 +383,7 @@ class smile_limb():
         ax.set_ylim(-3,12)
         
         #Add the earth: 
-        self.make_earth_2d(ax, rotation=-90) 
+        get_earth.make_earth(ax, rotation=-90) 
         
         #Add arrow for x axis. 
         ax.arrow(-5,0,15,0, length_includes_head=True, head_width=0.5, color='k')
@@ -399,7 +402,11 @@ class smile_limb():
         
         #Add arcs for angles. 
         total_angle = np.rad2deg(self.limb_c - self.alpha_angle) 
-        arc_alpha = Arc((self.smile_loc[0],self.smile_loc[2]), 3, 3, angle=-90, theta1=0, theta2=total_angle, color='k')
+        print (total_angle)
+        #arc_alpha = Arc((self.smile_loc[0],self.smile_loc[2]), 3, 3, angle=-90, theta1=0, theta2=total_angle, color='k')
+        arc_alpha = Arc((self.smile_loc[0], self.smile_loc[2]), 3, 3, angle=-90, theta1=0, theta2=-np.rad2deg(self.alpha_angle), color='k') 
+        ax.add_patch(arc_alpha)
+        arc_alpha = Arc((self.smile_loc[0], self.smile_loc[2]), 3.5, 3.5, angle=-90, theta1=-np.rad2deg(self.alpha_angle), theta2=total_angle, color='k') 
         ax.add_patch(arc_alpha)
         
         #Add vertical line. 
@@ -420,7 +427,7 @@ class smile_limb():
         
         ax.text(self.smile_loc[0]+0.3, self.smile_loc[2]-2, r'$\alpha$', rotation=0, va='center', ha='center')
         
-        ax.text(self.smile_loc[0]+1.2, self.smile_loc[2]-1.8, "l'", rotation=0, va='center', ha='center')
+        ax.text(self.smile_loc[0]+1.5, self.smile_loc[2]-1.8, "l+r", rotation=0, va='center', ha='center')
         
         ax.set_aspect('equal')
         
@@ -428,50 +435,8 @@ class smile_limb():
         ax.set_axis_off()
         
         if save:
+            print ('Saving: ',self.plot_path+'Orbital_limb_diagram.png') 
             fig.savefig(self.plot_path+'Orbital_limb_diagram.png', dpi=800)
     
     
-    def add_fov_boundaries(self, ax2, color='k', lw=2):
-        '''This will add the FOV boundaries in black/white. '''
-        
-        #For corner pixels only. 
-        ax2.plot(self.xpos[0][0], self.ypos[0][0], self.zpos[0][0], color, lw=lw)
-        ax2.plot(self.xpos[0][-1], self.ypos[0][-1], self.zpos[0][-1], color, lw=lw)
-        ax2.plot(self.xpos[-1][0], self.ypos[-1][0], self.zpos[-1][0], color, lw=lw)
-        ax2.plot(self.xpos[-1][-1], self.ypos[-1][-1], self.zpos[-1][-1], color, lw=lw)
-        
-        #Join corners together. 
-        ax2.plot([self.xpos[0][0][-1],self.xpos[0][-1][-1]], [self.ypos[0][0][-1],self.ypos[0][-1][-1]], [self.zpos[0][0][-1],self.zpos[0][-1][-1]], color, lw=lw)
-        ax2.plot([self.xpos[0][-1][-1],self.xpos[-1][-1][-1]], [self.ypos[0][-1][-1],self.ypos[-1][-1][-1]], [self.zpos[0][-1][-1],self.zpos[-1][-1][-1]], color, lw=lw)
-        ax2.plot([self.xpos[-1][-1][-1],self.xpos[-1][0][-1]], [self.ypos[-1][-1][-1],self.ypos[-1][0][-1]], [self.zpos[-1][-1][-1],self.zpos[-1][0][-1]], color, lw=lw)
-        ax2.plot([self.xpos[-1][0][-1],self.xpos[0][0][-1]], [self.ypos[-1][0][-1],self.ypos[0][0][-1]], [self.zpos[-1][0][-1],self.zpos[0][0][-1]], color, lw=lw)
-                   
-    def add_earth(self, ax):
-        '''This will add a sphere for the Earth. '''
-        
-        #Create a spherical surface. 
-        radius = 1
-        u = np.linspace(0, 2*np.pi, 100) 
-        v = np.linspace(0, np.pi, 100) 
-        x = radius* np.outer(np.cos(u), np.sin(v)) 
-        y = radius* np.outer(np.sin(u), np.sin(v))
-        z = radius* np.outer(np.ones(np.size(u)), np.cos(v))
-        
-        ax.plot_surface(x, y, z, color='k', lw=0, alpha=1)
 
-    def make_earth_2d(self, ax, rotation=0):
-        '''This will add a little plot of the Earth on top for reference. '''
-
-        # Add white circle first. 
-        r=1
-        circle = Circle((0,0), r, facecolor='w', edgecolor='navy')
-        ax.add_patch(circle)
-
-        # Add nightside. 
-        theta2 = np.arange(181)-180+rotation
-        xval2 = np.append(r*np.cos(theta2*(np.pi/180)),0)
-        yval2 = np.append(r*np.sin(theta2*(np.pi/180)),0)
-        verts2 = [[xval2[i],yval2[i]] for i in range(len(xval2))]
-        
-        polygon2 = Polygon(verts2, closed=True, edgecolor='navy', facecolor='navy', alpha=1) 
-        ax.add_patch(polygon2)    

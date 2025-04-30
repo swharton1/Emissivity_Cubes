@@ -7,7 +7,8 @@ from astropy.io import fits as pyfits
 #from . import masking 
 from . import calc_flowlines as flowlines
 from . import cusp_id 
-from . import get_meridians as gm
+from SXI_Core import get_meridians as gm
+from SXI_Core import get_earth 
 from time import process_time
 
 class emissivity():
@@ -350,7 +351,7 @@ class emissivity():
         ax1.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax1, rotation=-90)
+        get_earth.make_earth(ax1, rotation=-90)
 
          # Constant z. 
         cont2 = ax2.contourf(xp_z, yp_z, letad_z, cmap=cmap, levels=levels, vmin=vmin, vmax=vmax)
@@ -370,7 +371,7 @@ class emissivity():
         cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax2, rotation=-90)
+        get_earth.make_earth(ax2, rotation=-90)
 
         # Option to save figure. 
         if save:
@@ -441,7 +442,7 @@ class emissivity():
         ax1.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax1, rotation=-90)
+        get_earth.make_earth(ax1, rotation=-90)
 
          # Constant z. 
         cont2 = ax2.contourf(xp_z, yp_z, veffd_z, cmap=cmap, levels=levels_veff, vmin=vmin_veff, vmax=vmax_veff)
@@ -462,7 +463,7 @@ class emissivity():
         # cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax2, rotation=-90)
+        get_earth.make_earth(ax2, rotation=-90)
 
         # Solar wind density 
         ax3 = fig.add_subplot(323)
@@ -479,7 +480,7 @@ class emissivity():
         ax3.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax3, rotation=-90)
+        get_earth.make_earth(ax3, rotation=-90)
     
         # Constant z. 
         cont4 = ax4.contourf(xp_z, yp_z, rhod_z, cmap=cmap, levels=levels_rho, vmin=vmin_rho, vmax=vmax_rho)
@@ -512,7 +513,7 @@ class emissivity():
         ax5.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax5, rotation=-90)
+        get_earth.make_earth(ax5, rotation=-90)
         
         # Constant z. 
         cont6 = ax6.contourf(xp_z, yp_z, lnHd_z, cmap=cmap, levels=levels_nH, vmin=vmin_nH, vmax=vmax_nH)
@@ -532,25 +533,10 @@ class emissivity():
         cbar.set_ticklabels([r'$10^{'+str(int(i))+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax6, rotation=-90)
+        get_earth.make_earth(ax6, rotation=-90)
         
         # Option to save figure. 
         if save: 
             fig.savefig(self.plot_path+"{}_em_key_comp{}.png".format(file_label,savetag))
     
-    def make_earth(self, ax, rotation=0):
-        '''This will add a little plot of the Earth on top for reference. '''
 
-        # Add white circle first. 
-        r=1
-        circle = Circle((0,0), r, facecolor='w', edgecolor='navy')
-        ax.add_patch(circle)
-
-        # Add nightside. 
-        theta2 = np.arange(181)-180+rotation
-        xval2 = np.append(r*np.cos(theta2*(np.pi/180)),0)
-        yval2 = np.append(r*np.sin(theta2*(np.pi/180)),0)
-        verts2 = [[xval2[i],yval2[i]] for i in range(len(xval2))]
-        
-        polygon2 = Polygon(verts2, closed=True, edgecolor='navy', facecolor='navy', alpha=1) 
-        ax.add_patch(polygon2)    

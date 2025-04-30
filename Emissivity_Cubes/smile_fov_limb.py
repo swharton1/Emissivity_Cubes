@@ -7,6 +7,9 @@ import os
 from matplotlib.patches import Wedge, Polygon, Circle, Arc
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
+from SXI_Core import get_earth 
+from SXI_Core import add_fov_boundaries
+
 class smile_limb():
     '''This object will use the spacecraft position and limb angle to work out 
     the pointing and target directions, along with everything else.''' 
@@ -77,8 +80,10 @@ class smile_limb():
             self.radial_constraint = True 
         else:
             self.radial_constraint = False
-            
-        if self.limb_c-self.alpha_angle < np.deg2rad(90-35.83):
+        
+        #ANDY SAID TO UPDATE THE 35.83 TO 40 DEGREES. 
+        #APPARENTLY THERE IS AN ERROR IN THE SMILE PAPER.    
+        if self.limb_c-self.alpha_angle < np.deg2rad(90-40):
             self.solar_constraint = True
         else:
             self.solar_constraint = False 
@@ -220,7 +225,7 @@ class smile_limb():
         #Add yi unit vector. 
         ax.plot([self.b[0], self.b[0]+self.yi_unit[0]], [self.b[1], self.b[1]+self.yi_unit[1]], [self.b[2], self.b[2]+self.yi_unit[2]], c='orange', label='yi')
         
-        self.add_earth(ax)
+        get_earth.make_earth_3d(ax)
         
         #Sort legend and labels. 
         ax.legend(loc='best')
@@ -263,7 +268,7 @@ class smile_limb():
         ax.plot([0, self.b[0]], [0, self.b[1]], [0, self.b[2]], 'c-', label='b') 
         
         #Add the FOV boundaries. 
-        self.add_fov_boundaries(ax, lw=2) 
+        add_fov_boundaries.add_fov_boundaries(ax, self.xpos, self.ypos, self.zpos, lw=2) 
         
         self.add_fov_rectangle(ax, color='gray')
         
@@ -274,28 +279,13 @@ class smile_limb():
         ax.set_ylabel('y')
         ax.set_zlabel('z')
         
-        self.add_earth(ax)
+        get_earth.make_earth_3d(ax)
         ax.set_aspect('equal') 
         
         ax.view_init(elev,azim) 
     
     
     
-        
-    def add_fov_boundaries(self, ax2, color='k', lw=2):
-        '''This will add the FOV boundaries in black/white. '''
-        
-        #For corner pixels only. 
-        ax2.plot(self.xpos[0][0], self.ypos[0][0], self.zpos[0][0], color, lw=lw)
-        ax2.plot(self.xpos[0][-1], self.ypos[0][-1], self.zpos[0][-1], color, lw=lw)
-        ax2.plot(self.xpos[-1][0], self.ypos[-1][0], self.zpos[-1][0], color, lw=lw)
-        ax2.plot(self.xpos[-1][-1], self.ypos[-1][-1], self.zpos[-1][-1], color, lw=lw)
-        
-        #Join corners together. 
-        ax2.plot([self.xpos[0][0][-1],self.xpos[0][-1][-1]], [self.ypos[0][0][-1],self.ypos[0][-1][-1]], [self.zpos[0][0][-1],self.zpos[0][-1][-1]], color, lw=lw)
-        ax2.plot([self.xpos[0][-1][-1],self.xpos[-1][-1][-1]], [self.ypos[0][-1][-1],self.ypos[-1][-1][-1]], [self.zpos[0][-1][-1],self.zpos[-1][-1][-1]], color, lw=lw)
-        ax2.plot([self.xpos[-1][-1][-1],self.xpos[-1][0][-1]], [self.ypos[-1][-1][-1],self.ypos[-1][0][-1]], [self.zpos[-1][-1][-1],self.zpos[-1][0][-1]], color, lw=lw)
-        ax2.plot([self.xpos[-1][0][-1],self.xpos[0][0][-1]], [self.ypos[-1][0][-1],self.ypos[0][0][-1]], [self.zpos[-1][0][-1],self.zpos[0][0][-1]], color, lw=lw)
     
     def add_fov_rectangle(self, ax, color='gray'):
         '''This will hopefully add a rectangle to the end of the FOV to make its shape clearer.'''
@@ -310,16 +300,4 @@ class smile_limb():
         
         return 
         
-           
-    def add_earth(self, ax):
-        '''This will add a sphere for the Earth. '''
-        
-        #Create a spherical surface. 
-        radius = 1
-        u = np.linspace(0, 2*np.pi, 100) 
-        v = np.linspace(0, np.pi, 100) 
-        x = radius* np.outer(np.cos(u), np.sin(v)) 
-        y = radius* np.outer(np.sin(u), np.sin(v))
-        z = radius* np.outer(np.ones(np.size(u)), np.cos(v))
-        
-        ax.plot_surface(x, y, z, color='k', lw=0, alpha=1)
+

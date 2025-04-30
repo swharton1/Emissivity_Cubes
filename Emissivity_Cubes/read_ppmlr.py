@@ -3,8 +3,11 @@ from matplotlib.patches import Wedge, Polygon, Circle
 import os
 import matplotlib.pyplot as plt 
 
+
+from SXI_Core import get_meridians as gm 
+
 # This function will read the PPMLR files. 
-from . import smile_fov 
+
 
 class read_ppmlr_cube():
     '''This function will read in the PPMLR cube files to get the emissivity 
@@ -124,9 +127,6 @@ class read_ppmlr_cube():
         except (FileNotFoundError, IOError):
              print ("Filename not found: {}".format(self.filename))
 
-        #Get estimations of subsolar magnetopause values. 
-        self.get_subsolar_magnetopauses()
-
     def __repr__(self):
         return ("Custom read_ppmlr object for the file: {}".format(self.filename))
     
@@ -183,43 +183,6 @@ class read_ppmlr_cube():
 
         return mag_pressure
     
-    def get_subsolar_magnetopauses(self):
-        '''This will get a few definitions of the subsolar magnetopause.'''
-        
-        # For the slice with constant y. 
-        y_uniq = abs(self.y_3d[0,:,0])
-        i_y = np.where(y_uniq == min(y_uniq))[0][0]
-
-        # For the slice with constant z. 
-        z_uniq = abs(self.z_3d[:,0,0])
-        i_z = np.where(z_uniq == min(z_uniq))[0][0]
-
-        # Get data along sun-earth line. 
-        xp = self.x_3d[i_z,i_y]
-        yp = self.y_3d[i_z,i_y]
-        zp = self.z_3d[i_z,i_y]
-        etad = self.eta_3d[i_z,i_y]
-        
-        # Get max Ix second. 
-        ix_index = np.where(etad == etad.max())
-        self.maxIx = xp[ix_index][0]
-        
-        # Get max dIx third. 
-        # Get difference between etad values. 
-        dIx = np.array([etad[i+1] - etad[i] for i in range(len(etad) - 1)])
-
-        # Get centre point positions for radial direction. 
-        xp_cent = xp + (xp[1]-xp[0])/2
-        xp_cent = xp_cent[0:-1]
-
-        dix_index = np.where(dIx == dIx.max())
-        self.maxdIx = xp[dix_index][0]
-
-        # Get f=0.25 
-        dr = xp[ix_index] - xp[dix_index]
-        self.f = xp[dix_index] + 0.25*dr[0] 
-        
-    
     def plot_both_planes(self, cmap="hot", levels=100, vmin=-8, vmax=-4, save=False, savetag=""):
         '''This will plot in the X-Z and X-Y planes side by side. 
         
@@ -236,7 +199,6 @@ class read_ppmlr_cube():
 
         #Get meridian data for etad. 
         xp_y, yp_y, zp_y, etad_y, xp_z, yp_z, zp_z, etad_z = gm.calculate_meridian_planes(self.x_3d, self.y_3d, self.z_3d, self.eta_3d)
-
 
         # Calculate log10 eta values. If eta = 0, set log(eta) = vmin  
         letad_y = np.zeros(etad_y.shape)+vmin
@@ -263,7 +225,7 @@ class read_ppmlr_cube():
         # Now you can make the contour plot. 
         fig = plt.figure()
         sw_units = ["cm"+r"$^{-3}$", "km s"+r"$^{-1}$", "nT"]
-        label = file_label+"\nn = {} {}".format(self.density, sw_units[0])+", "+r"$v_x$ = {} {}".format(self.vx, sw_units[1])+r", $B_z$ = {} {}".format(self.bz, sw_units[2])
+        label = file_label+"\nn = {:.2f} {}".format(self.density, sw_units[0])+", "+r"$v_x$ = {:.2f} {}".format(self.vx, sw_units[1])+r", $B_z$ = {:.2f} {}".format(self.bz, sw_units[2])
         fig.text(0.5,0.9, label, ha="center")
         fig.subplots_adjust(wspace=0.4)
         ax1 = fig.add_subplot(121)

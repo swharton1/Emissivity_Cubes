@@ -7,7 +7,7 @@ from scipy.interpolate import interpn
 import os
 from astropy.io import fits as pyfits
 import glob
-from . import read_fits_cube
+from SXI_Core import read_fits_cube
 from . import transformations as trans 
 
 

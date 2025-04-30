@@ -5,7 +5,7 @@ import json
 from matplotlib.patches import Wedge, Polygon, Circle
 import matplotlib.pyplot as plt
 
-from . import get_meridians as gm 
+from SXI_Core import get_meridians as gm 
 
 class openggcm(): 
     '''This class will contain all the code to read the openggcm MHD files and calculate the emissivity.

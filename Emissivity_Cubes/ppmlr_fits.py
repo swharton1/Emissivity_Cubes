@@ -5,10 +5,14 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Wedge, Polygon, Circle
 
 from . import read_ppmlr 
-from . import get_meridians as gm 
+from SXI_Core import get_meridians as gm 
+from SXI_Core import calc_pressures
+from SXI_Core import get_earth
 
 class read_ppmlr_fits():
-    '''This class will read in the PPMLR fits file and add the data to a python object in the same format as read_ppmlr_cube()''' 
+    '''This class will read in the PPMLR fits file and add the data to a python object in the same format as read_ppmlr_cube(). 
+    
+    REDUNDANT NOW. REPLACED BY READ_FITS_CUBE IN SXI_CORE, BUT STILL USEABLE.''' 
     
     def __init__(self, filename='S05D05V400B0000-05rad.fits', xmin=None, xmax=None, ymin=None, ymax=None, zmin=None, zmax=None): 
     
@@ -40,11 +44,8 @@ class read_ppmlr_fits():
                 self.temp = np.float32(self.primary_header['TEMP']) 
 
 
-                # Get dynamic pressure.
-                self.dyn_pressure = self.calc_dynamic_pressure()
-
-                # Get magnetic pressure. 
-                self.mag_pressure = self.calc_magnetic_pressure()
+                self.pdyn = calc_pressures.calc_dynamic_pressure(self.vx, self.vy, self.vz, self.density)
+                self.pmag = calc_pressures.calc_magnetic_pressure(self.bx, self.by, self.bz)
                 
                 #Get the number of indices in the x, y and z directions. 
                 self.n = np.array([self.primary_header['NAXIS1'], self.primary_header['NAXIS2'], self.primary_header['NAXIS3']]).astype('int32')
@@ -115,40 +116,6 @@ class read_ppmlr_fits():
         return ("Class to read in the PPMLR emissivity cube from the fits file: {}".format(self.filename))
 
 
-    def calc_dynamic_pressure(self):
-        '''Calculate this as it's a parameter in some models.'''
-
-         # Assume average ion mass = mass of proton. 
-        mp = 0.00000000000000000000000000167
-        
-        # Calculate v in m/s 
-        v = (self.vx**2 + self.vy**2 + self.vz**2)**0.5
-        v = v*1000 
-
-        # Convert number of particles /cm^3 to /m^3. 
-        n = self.density*1000000
-
-        # Calculate dynamic pressure first in Pascals, then nPa. 
-        dyn_pressure = 0.5*mp*n*(v**2)
-        dyn_pressure = dyn_pressure*1000000000
-
-        return (dyn_pressure)
-
-    def calc_magnetic_pressure(self):
-        '''Calculate the magnetic pressure'''
-
-        # Calculate magnitude of B in T. 
-        B = (self.bx**2 + self.by**2 + self.bz**2)**0.5
-        B = B*0.000000001
-
-        # mu0
-        mu0 = 4*np.pi*0.0000001
-
-        # Calculate magnetic pressure in Pa, then nPa. 
-        mag_pressure = (B**2)/(2*mu0)
-        mag_pressure = mag_pressure*1000000000
-
-        return mag_pressure
     
     def get_subsolar_magnetopauses(self):
         '''This will get a few definitions of the subsolar magnetopause.'''
@@ -200,23 +167,8 @@ class read_ppmlr_fits():
         
         '''
 
-        #Get meridian data for etad. 
-        xp_y, yp_y, zp_y, etad_y, xp_z, yp_z, zp_z, etad_z = gm.calculate_meridian_planes(self.x_3d, self.y_3d, self.z_3d, self.eta_3d)
-
-        # Calculate log10 eta values. If eta = 0, set log(eta) = vmin  
-        letad_y = np.zeros(etad_y.shape)+vmin
-        i = np.where(etad_y != 0)
-        letad_y[i] = np.log10(etad_y[i])
-        j = np.where(letad_y < vmin)
-        letad_y[j] = vmin 
-
-
-         # Calculate log10 eta values. If eta = 0, set log(eta) = vmin 
-        letad_z = np.zeros(etad_z.shape)+vmin
-        i = np.where(etad_z != 0)
-        letad_z[i] = np.log10(etad_z[i])
-        j = np.where(letad_z < vmin)
-        letad_z[j] = vmin 
+        #Get PPMLR data. 
+        xp_y, zp_y, letad_y, xp_z, yp_z, letad_z = gm.get_log_emissivity(self.x_3d, self.y_3d, self.z_3d, self.eta_3d, vmin=vmin, vmax=vmax) 
 
 
         # Create a filename label so you know which file you plotted. 
@@ -242,7 +194,7 @@ class read_ppmlr_fits():
         ax1.set_aspect("equal")
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax1, rotation=-90)
+        get_earth.make_earth(ax1, rotation=-90)
 
          # Constant z. 
         cont2 = ax2.contourf(xp_z, yp_z, letad_z, cmap='hot', levels=levels, vmin=vmin, vmax=vmax)
@@ -261,7 +213,7 @@ class read_ppmlr_fits():
         cbar.set_ticklabels([r'$10^{'+str(i)+'}$' for i in cticks])
 
         # Add sketch of the Earth on top. 
-        self.make_earth(ax2, rotation=-90)
+        get_earth.make_earth(ax2, rotation=-90)
 
         # Option to save figure. 
         if save: 
@@ -269,24 +221,6 @@ class read_ppmlr_fits():
             fig.savefig(self.plot_path+"{}_both_planes{}.png".format(file_label, savetag))
 
 
-
-
-    def make_earth(self, ax, rotation=0):
-        '''This will add a little plot of the Earth on top for reference. '''
-
-        # Add white circle first. 
-        r=1
-        circle = Circle((0,0), r, facecolor='w', edgecolor='navy')
-        ax.add_patch(circle)
-
-        # Add nightside. 
-        theta2 = np.arange(181)-180+rotation
-        xval2 = np.append(r*np.cos(theta2*(np.pi/180)),0)
-        yval2 = np.append(r*np.sin(theta2*(np.pi/180)),0)
-        verts2 = [[xval2[i],yval2[i]] for i in range(len(xval2))]
-        
-        polygon2 = Polygon(verts2, closed=True, edgecolor='navy', facecolor='navy', alpha=1) 
-        ax.add_patch(polygon2)        
         
 
 class convert_to_fits():

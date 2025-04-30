@@ -4,9 +4,9 @@ import os
 import matplotlib.pyplot as plt 
 from astropy.io import fits as pyfits 
 
-from . import get_meridians as gm 
-from . import get_earth 
-from . import calc_pressures 
+from SXI_Core import get_meridians as gm 
+from SXI_Core import get_earth 
+from SXI_Core import calc_pressures 
 # This function will read the OpenGGCM ASCII files in exactly the same way as the PPMLR files. 
 
 
@@ -144,6 +144,7 @@ class read_ascii_cube():
         except (FileNotFoundError, IOError):
              print ("Filename not found: {}".format(self.filename))
 
+        
         self.get_subsolar_magnetopauses()
          
     def __repr__(self):
